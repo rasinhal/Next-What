@@ -1,4 +1,4 @@
-name: Publish Bubble Pop to GitHub Pages
+name: Publish the games to GitHub Pages
 
 on:
   push:

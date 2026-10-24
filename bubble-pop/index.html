@@ -4,69 +4,38 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b2a4a">
-  <title>Bubble Pop</title>
+  <title>Next What? Motion Games</title>
   <link rel="stylesheet" href="./src/style.css">
+  <link rel="stylesheet" href="./src/hub.css">
 </head>
-<body>
-  <video id="cam" playsinline muted></video>
-  <canvas id="stage"></canvas>
-
-  <div id="hud" hidden>
-    <div class="pill score" id="score1">0</div>
-    <div class="pill" id="timer">60</div>
-    <div class="pill score p2" id="score2" hidden>0</div>
-  </div>
-  <div id="divider" hidden></div>
-  <button type="button" id="skip" hidden>Tap to start</button>
-  <div id="debug" hidden></div>
-  <div id="hint" hidden></div>
-
-  <section id="menu" class="panel">
-    <h1>Bubble Pop</h1>
-    <p class="lead">Stand back so the camera sees your whole body, then pop bubbles with your hands.</p>
-
-    <fieldset>
-      <legend>Who is playing?</legend>
-      <div class="choices" id="level">
-        <button type="button" data-level="little">Little kids<small>3 to 6</small></button>
-        <button type="button" data-level="kids" class="on">Kids<small>7 to 12</small></button>
-        <button type="button" data-level="big">Teens and adults<small>13+</small></button>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Players</legend>
-      <div class="choices" id="players">
-        <button type="button" data-players="1" class="on">1 player</button>
-        <button type="button" data-players="2">2 players</button>
-      </div>
-    </fieldset>
-
-    <label class="check"><input type="checkbox" id="showDebug"> Show tracking info (speed test)</label>
-
-    <button type="button" id="start" class="big">Start</button>
-    <p class="fine">Video stays on this device. Nothing is recorded or uploaded.</p>
-  </section>
-
-  <section id="loading" class="panel" hidden>
-    <h2 id="loadingText">Starting the camera...</h2>
-  </section>
-
-  <section id="over" class="panel" hidden>
-    <h2>Time's up!</h2>
-    <p class="result" id="final"></p>
-    <div class="row">
-      <button type="button" id="again" class="big">Play again</button>
-      <button type="button" id="toMenu">Menu</button>
-    </div>
-  </section>
-
-  <section id="error" class="panel" hidden>
-    <h2>Something went wrong</h2>
-    <p id="errorText"></p>
-    <button type="button" id="retry">Back to menu</button>
-  </section>
-
-  <script type="module" src="./src/main.js"></script>
+<body class="hub">
+  <main>
+    <h1>Motion Games</h1>
+    <p class="lead">Your body is the controller. Prop up the phone, tablet or laptop, step back, and play.</p>
+    <nav class="games" aria-label="Games">
+      <a class="game" href="./runner.html" style="--c:#7dff9b">
+        <span class="icon" aria-hidden="true">🏃</span>
+        <b>Runner</b>
+        <small>Dodge, jump and duck down the track</small>
+      </a>
+      <a class="game" href="./cricket.html" style="--c:#ffd23f">
+        <span class="icon" aria-hidden="true">🏏</span>
+        <b>Cricket</b>
+        <small>Swing your hands like a bat and hit sixes</small>
+      </a>
+      <a class="game" href="./table-tennis.html" style="--c:#5ad1ff">
+        <span class="icon" aria-hidden="true">🏓</span>
+        <b>Table Tennis</b>
+        <small>Your hand is the paddle</small>
+      </a>
+      <a class="game" href="./bubble-pop.html" style="--c:#ff6b9a">
+        <span class="icon" aria-hidden="true">🫧</span>
+        <b>Bubble Pop</b>
+        <small>Pop bubbles with your hands</small>
+      </a>
+    </nav>
+    <p class="fine">1 or 2 players in every game. Video stays on this device. Nothing is recorded or uploaded.</p>
+  </main>
+  <script type="module" src="./src/hub.js"></script>
 </body>
 </html>

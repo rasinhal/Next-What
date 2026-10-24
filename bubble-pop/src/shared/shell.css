@@ -1,0 +1,45 @@
+/* Extra styles for the shared game shell; builds on ../style.css (the Bubble Pop look). */
+.back { align-self: flex-start; color: var(--muted); font-size: 15px; text-decoration: none; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+
+.how {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 16px;
+  color: var(--ink);
+}
+.how li::before { content: "• "; color: var(--accent); }
+
+#hudItems { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
+#hudItems .pill { font-size: clamp(18px, 4vw, 34px); white-space: nowrap; }
+
+.quit, .start-now {
+  position: fixed;
+  z-index: 2;
+  background: var(--panel);
+}
+.quit {
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 48px;
+  padding: 8px 14px;
+}
+#hud:not([hidden]) ~ .quit { top: auto; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); transform: none; }
+.start-now {
+  right: max(16px, env(safe-area-inset-right, 0px));
+  top: max(12px, env(safe-area-inset-top, 0px));
+  border-color: var(--accent);
+}
+
+.big-num { display: block; font-size: 64px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.result small { display: block; color: var(--muted); font-size: 16px; }
+.sides { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.side { flex: 1 1 160px; border: 2px solid var(--pc); border-radius: 16px; padding: 12px; }
+.side b { color: var(--pc); font-size: 18px; }
+.side .big-num { color: var(--pc); }
+#hud:not([hidden]) ~ #debug { bottom: 80px; }

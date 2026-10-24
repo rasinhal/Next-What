@@ -4,6 +4,25 @@ A first test game for a camera-based motion game: stand in front of the camera a
 
 It exists to answer one question: is body tracking fast and accurate enough on the devices our players own?
 
+## Games in this app
+
+`index.html` is the game menu. Each game is its own page:
+
+| Page | Game | Controls |
+| --- | --- | --- |
+| `runner.html` | Runner | Step left/right to change lanes, jump, crouch |
+| `cricket.html` | Cricket | Swing your hands like a bat |
+| `table-tennis.html` | Table Tennis | Move your hand to the ball |
+| `bubble-pop.html` | Bubble Pop | Touch bubbles with your hands |
+
+Runner, Cricket and Table Tennis share one game shell in `src/shared/`: `shell.js` (menu, "raise a hand to start", countdown, results), `players.js` (body positions and hand speeds in screen pixels), `sound.js` (synthesized sounds) and `tracking.js` (camera and body tracking, shared with Bubble Pop). A new game only needs its rules and drawing; see `src/runner.js` for the pattern, and add the page to `vite.config.js`.
+
+To start, every player raises a hand above their head. A "Start now" button (or Enter on a keyboard or TV remote) starts straight away, for example when only one of two players is found.
+
+### Testing without a camera
+
+Add `?sim` to any new game's address (for example `runner.html?sim`) to use a pretend player instead of the camera. Arrow keys move, jump and crouch, H raises a hand, and the mouse moves the right hand. Automated tests can set `window.__sim.players[i]` directly and read the game through `window.__game`.
+
 ## How it works
 
 - Body tracking: [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) (`@mediapipe/tasks-vision` 0.10.14, "lite" model). It runs on the device; video is never uploaded.
