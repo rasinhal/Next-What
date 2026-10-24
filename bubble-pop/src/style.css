@@ -1,0 +1,141 @@
+/* Full-screen camera stage with floating panels; one dark "underwater" look on purpose. */
+:root {
+  --deep: #0b2a4a;
+  --panel: rgba(9, 30, 54, 0.88);
+  --ink: #f4f8ff;
+  --muted: #a9c3e0;
+  --accent: #ffd23f;
+  --accent-ink: #2a1f00;
+  --line: rgba(255, 255, 255, 0.18);
+  --font: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--deep);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+#cam { display: none; }
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+[hidden] { display: none !important; }
+
+.panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+h1 { margin: 0; font-size: clamp(36px, 8vw, 56px); letter-spacing: 0.5px; color: var(--accent); }
+h2 { margin: 0; font-size: 28px; }
+.lead { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.4; }
+.fine { margin: 0; color: var(--muted); font-size: 13px; }
+.result { margin: 0; font-size: 22px; }
+#final { font-size: 64px; font-weight: 800; color: var(--accent); display: block; font-variant-numeric: tabular-nums; }
+
+fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+legend { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 8px; padding: 0; width: 100%; }
+
+.choices, .row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+button {
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 16px;
+  cursor: pointer;
+  min-height: 48px;
+}
+button small { display: block; font-weight: 500; font-size: 13px; color: var(--muted); }
+button.on { border-color: var(--accent); background: rgba(255, 210, 63, 0.14); }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button.big { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 22px; padding: 16px 32px; }
+
+.check { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--muted); font-size: 15px; }
+.check input { width: 20px; height: 20px; }
+
+#hud {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.pill {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-size: clamp(24px, 5vw, 40px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+#score { color: var(--accent); }
+
+#hint {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 20px;
+  font-size: clamp(18px, 4vw, 28px);
+  font-weight: 700;
+  text-align: center;
+  max-width: calc(100% - 32px);
+  pointer-events: none;
+}
+
+#debug {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  padding: 8px 12px;
+  white-space: pre;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { backdrop-filter: none; }
+}
