@@ -9,7 +9,7 @@ It exists to answer one question: is body tracking fast and accurate enough on t
 - Body tracking: [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) (`@mediapipe/tasks-vision` 0.10.14, "lite" model). It runs on the device; video is never uploaded.
 - The model and WASM files are bundled in `public/`, so the game works offline.
 - Age groups change bubble size, speed and how often bubbles appear. Bubble size also scales with the player's shoulder width, so small children and adults can both reach them.
-- 1 or 2 players. Two players share one team score.
+- 1 or 2 players. With 2 players the screen is split down the middle: each player stands on their own side and gets their own score. Each half of the camera image is tracked separately (`src/shared/tracking.js`), because asking for two people in the whole frame often finds only one.
 - Tick "Show tracking info" on the menu to see tracking frames per second. This is the number to write down for each device.
 
 ## Run it on a computer
