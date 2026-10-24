@@ -12,9 +12,12 @@
   <canvas id="stage"></canvas>
 
   <div id="hud" hidden>
-    <div class="pill" id="score">0</div>
+    <div class="pill score" id="score1">0</div>
     <div class="pill" id="timer">60</div>
+    <div class="pill score p2" id="score2" hidden>0</div>
   </div>
+  <div id="divider" hidden></div>
+  <button type="button" id="skip" hidden>Tap to start</button>
   <div id="debug" hidden></div>
   <div id="hint" hidden></div>
 
@@ -51,7 +54,7 @@
 
   <section id="over" class="panel" hidden>
     <h2>Time's up!</h2>
-    <p class="result"><span id="final">0</span> bubbles popped</p>
+    <p class="result" id="final"></p>
     <div class="row">
       <button type="button" id="again" class="big">Play again</button>
       <button type="button" id="toMenu">Menu</button>

@@ -1,8 +1,4 @@
-import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
-
-// Model and WASM files are bundled under public/, so the game works offline and inside the Android app.
-const WASM_PATH = './wasm';
-const MODEL_PATH = './models/pose_landmarker_lite.task';
+import { createTracker } from './shared/tracking.js';
 
 // MediaPipe pose landmark indices.
 const NOSE = 0, L_SHOULDER = 11, R_SHOULDER = 12, L_WRIST = 15, R_WRIST = 16, L_INDEX = 19, R_INDEX = 20;
@@ -17,6 +13,8 @@ const LEVELS = {
 };
 const ROUND_SECONDS = 60;
 const COLORS = ['#ff6b9a', '#5ad1ff', '#7dff9b', '#ffd23f', '#c49bff', '#ff9f43'];
+const PLAYER_COLORS = ['rgba(255, 210, 63, 0.9)', 'rgba(90, 209, 255, 0.9)'];
+const SIDE_NAMES = ['Left player', 'Right player'];
 
 const $ = (id) => document.getElementById(id);
 const video = $('cam');
@@ -24,22 +22,18 @@ const canvas = $('stage');
 const ctx = canvas.getContext('2d');
 
 const settings = { level: 'kids', players: 1, debug: false };
-let landmarker = null;
-let delegateUsed = '';
-let stream = null;
+let tracker = null;
 let state = 'menu'; // menu | ready | play | over
 let bubbles = [];
 let sparks = [];
-let poses = [];
-let score = 0;
+let poses = []; // [{ player, pts: [{x, y, v}] }] in canvas pixels
+let scores = [0, 0];
 let roundEnd = 0;
 let nextSpawn = 0;
 let readySince = 0;
 let lastSeen = 0;
-let lastVideoTime = -1;
 let fps = { frames: 0, since: performance.now(), value: 0, inferMs: 0 };
 let audio = null;
-let wakeLock = null;
 
 // ---------- Menu ----------
 
@@ -59,23 +53,29 @@ $('start').addEventListener('click', start);
 $('again').addEventListener('click', () => { show(null); toReady(); });
 $('toMenu').addEventListener('click', toMenu);
 $('retry').addEventListener('click', toMenu);
+$('skip').addEventListener('click', () => { if (state === 'ready') toPlay(performance.now()); });
 
 function show(panelId) {
   for (const id of ['menu', 'loading', 'over', 'error']) $(id).hidden = id !== panelId;
 }
 
-function toMenu() {
-  state = 'menu';
+function hideGameUi() {
   $('hud').hidden = true;
   $('hint').hidden = true;
   $('debug').hidden = true;
+  $('divider').hidden = true;
+  $('skip').hidden = true;
+}
+
+function toMenu() {
+  state = 'menu';
+  hideGameUi();
   show('menu');
 }
 
 function fail(message) {
   state = 'menu';
-  $('hud').hidden = true;
-  $('hint').hidden = true;
+  hideGameUi();
   $('errorText').textContent = message;
   show('error');
 }
@@ -86,15 +86,12 @@ async function start() {
   initAudio();
   show('loading');
   try {
-    if (!stream) {
-      $('loadingText').textContent = 'Starting the camera...';
-      await startCamera();
-    }
-    if (!landmarker) {
-      $('loadingText').textContent = 'Loading body tracking...';
-      await loadLandmarker(settings.players);
+    if (!tracker) {
+      $('loadingText').textContent = 'Starting the camera and body tracking...';
+      tracker = await createTracker({ players: settings.players, video });
     } else {
-      await landmarker.setOptions({ numPoses: settings.players });
+      $('loadingText').textContent = 'Loading body tracking...';
+      await tracker.setPlayers(settings.players);
     }
   } catch (err) {
     console.error(err);
@@ -104,6 +101,7 @@ async function start() {
   requestWakeLock();
   show(null);
   $('debug').hidden = !settings.debug;
+  $('divider').hidden = settings.players !== 2;
   toReady();
   requestAnimationFrame(loop);
 }
@@ -117,34 +115,9 @@ function explain(err) {
   return 'Body tracking could not start on this device. ' + (err && err.message ? err.message : '');
 }
 
-async function startCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error('no-media-devices');
-  }
-  stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-  });
-  video.srcObject = stream;
-  await video.play();
-}
-
-async function loadLandmarker(numPoses) {
-  const fileset = await FilesetResolver.forVisionTasks(WASM_PATH);
-  const base = { runningMode: 'VIDEO', numPoses, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 };
-  try {
-    landmarker = await PoseLandmarker.createFromOptions(fileset, { ...base, baseOptions: { modelAssetPath: MODEL_PATH, delegate: 'GPU' } });
-    delegateUsed = 'GPU';
-  } catch (gpuErr) {
-    console.warn('GPU delegate failed, using CPU', gpuErr);
-    landmarker = await PoseLandmarker.createFromOptions(fileset, { ...base, baseOptions: { modelAssetPath: MODEL_PATH, delegate: 'CPU' } });
-    delegateUsed = 'CPU';
-  }
-}
-
 async function requestWakeLock() {
   try {
-    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
   } catch (_) { /* optional */ }
 }
 
@@ -176,19 +149,23 @@ function toReady() {
   state = 'ready';
   bubbles = [];
   sparks = [];
-  score = 0;
+  scores = [0, 0];
   readySince = 0;
   $('hud').hidden = true;
-  setHint(settings.players === 2 ? 'Both players: raise both hands to start!' : 'Raise both hands to start!');
+  $('skip').hidden = false;
+  setHint(settings.players === 2 ? 'One player on each side of the line. Raise both hands!' : 'Raise both hands to start!');
 }
 
 function toPlay(now) {
   state = 'play';
-  score = 0;
+  scores = [0, 0];
   roundEnd = now + ROUND_SECONDS * 1000;
   nextSpawn = now;
-  $('score').textContent = '0';
+  $('score1').textContent = '0';
+  $('score2').textContent = '0';
+  $('score2').hidden = settings.players !== 2;
   $('hud').hidden = false;
+  $('skip').hidden = true;
   setHint('');
 }
 
@@ -196,7 +173,22 @@ function toOver() {
   state = 'over';
   $('hud').hidden = true;
   setHint('');
-  $('final').textContent = String(score);
+  const final = $('final');
+  final.replaceChildren();
+  const add = (label, value, cls) => {
+    const span = document.createElement('span');
+    if (cls) span.className = cls;
+    const b = document.createElement('b');
+    b.textContent = String(value);
+    span.append(b, label);
+    final.append(span);
+  };
+  if (settings.players === 2) {
+    add(SIDE_NAMES[0], scores[0]);
+    add(SIDE_NAMES[1], scores[1], 'p2');
+  } else {
+    add('bubbles popped', scores[0]);
+  }
   show('over');
 }
 
@@ -215,10 +207,6 @@ function coverRect() {
   return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
 }
 
-function toScreen(lm, rect) {
-  return { x: rect.x + (1 - lm.x) * rect.w, y: rect.y + lm.y * rect.h, v: lm.visibility ?? 1 };
-}
-
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(window.innerWidth * dpr);
@@ -227,10 +215,14 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+function shoulderWidth(p) {
+  return Math.hypot(p[L_SHOULDER].x - p[R_SHOULDER].x, p[L_SHOULDER].y - p[R_SHOULDER].y);
+}
+
 // Players' shoulder width in screen pixels, used to size bubbles so small children and tall adults both reach them.
 function bodyScale() {
-  const widths = poses.map((p) => Math.hypot(p[L_SHOULDER].x - p[R_SHOULDER].x, p[L_SHOULDER].y - p[R_SHOULDER].y)).filter((w) => w > 0);
-  if (!widths.length) return canvas.width * 0.15;
+  const widths = poses.map((p) => shoulderWidth(p.pts)).filter((w) => w > 0);
+  if (!widths.length) return canvas.width * (settings.players === 2 ? 0.08 : 0.15);
   return widths.reduce((a, b) => a + b, 0) / widths.length;
 }
 
@@ -245,10 +237,10 @@ function loop(now) {
 }
 
 function track(now) {
-  if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoTime) return;
-  lastVideoTime = video.currentTime;
+  if (!tracker) return;
   const t0 = performance.now();
-  const result = landmarker.detectForVideo(video, now);
+  const result = tracker.detect(now);
+  if (!result) return;
   fps.inferMs = performance.now() - t0;
   fps.frames++;
   if (now - fps.since > 1000) {
@@ -257,7 +249,10 @@ function track(now) {
     fps.since = now;
   }
   const rect = coverRect();
-  poses = (result.landmarks || []).map((pose) => pose.map((lm) => toScreen(lm, rect)));
+  poses = result.map(({ player, lm }) => ({
+    player,
+    pts: lm.map((p) => ({ x: rect.x + p.x * rect.w, y: rect.y + p.y * rect.h, v: p.visibility })),
+  }));
   if (poses.length) lastSeen = now;
 }
 
@@ -268,20 +263,7 @@ function handsUp(p) {
 function update(now) {
   const dt = 1 / 60;
 
-  if (state === 'ready') {
-    const needed = settings.players;
-    const up = poses.filter(handsUp).length;
-    if (!poses.length) setHint('Step back until the camera can see you');
-    else if (up >= needed) {
-      if (!readySince) readySince = now;
-      const left = 3 - Math.floor((now - readySince) / 1000);
-      setHint(left > 0 ? `Get ready... ${left}` : 'Go!');
-      if (now - readySince > 3000) toPlay(now);
-    } else {
-      readySince = 0;
-      setHint(needed === 2 ? `Both players: raise both hands! (${up}/2 ready)` : 'Raise both hands to start!');
-    }
-  }
+  if (state === 'ready') updateReady(now);
 
   if (state === 'play') {
     const level = LEVELS[settings.level];
@@ -299,26 +281,29 @@ function update(now) {
         phase: Math.random() * Math.PI * 2,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       });
-      nextSpawn = now + level.gap * 1000 * (0.7 + Math.random() * 0.6);
+      // Two players share the screen, so bubbles come twice as often.
+      const gap = settings.players === 2 ? level.gap / 2 : level.gap;
+      nextSpawn = now + gap * 1000 * (0.7 + Math.random() * 0.6);
     }
 
-    const hands = [];
-    for (const p of poses) for (const i of HAND_POINTS) if (p[i].v > 0.4) hands.push(p[i]);
     const handR = bodyScale() * 0.12;
-
     for (const b of bubbles) {
       b.y -= b.vy * dt;
       b.phase += dt * 2;
       const bx = b.x + Math.sin(b.phase) * b.r * 0.3;
-      if (!b.popped && hands.some((h) => Math.hypot(h.x - bx, h.y - b.y) < b.r + handR)) {
+      if (b.popped) continue;
+      for (const pose of poses) {
+        const hit = HAND_POINTS.some((i) => pose.pts[i].v > 0.4 && Math.hypot(pose.pts[i].x - bx, pose.pts[i].y - b.y) < b.r + handR);
+        if (!hit) continue;
         b.popped = true;
-        score++;
-        $('score').textContent = String(score);
+        scores[pose.player]++;
+        $(pose.player === 0 ? 'score1' : 'score2').textContent = String(scores[pose.player]);
         popSound();
         for (let k = 0; k < 10; k++) {
           const a = (k / 10) * Math.PI * 2;
           sparks.push({ x: bx, y: b.y, vx: Math.cos(a) * b.r * 3, vy: Math.sin(a) * b.r * 3, life: 0.5, color: b.color });
         }
+        break;
       }
     }
     bubbles = bubbles.filter((b) => !b.popped && b.y > -b.r);
@@ -332,9 +317,32 @@ function update(now) {
 
   if (settings.debug) {
     $('debug').textContent = `tracking ${fps.value} fps  (${fps.inferMs.toFixed(0)} ms/frame)\n` +
-      `processor ${delegateUsed}  people ${poses.length}\n` +
+      `processor ${tracker ? tracker.delegate : ''}  people ${poses.length}/${settings.players}\n` +
       `camera ${video.videoWidth}x${video.videoHeight}  level ${LEVELS[settings.level].label}`;
   }
+}
+
+// Start once every player is seen with both hands up for 3 seconds.
+function updateReady(now) {
+  const needed = settings.players;
+  const seen = [false, false], up = [false, false];
+  for (const p of poses) { seen[p.player] = true; if (handsUp(p.pts)) up[p.player] = true; }
+  const allUp = up.slice(0, needed).every(Boolean);
+
+  if (allUp) {
+    if (!readySince) readySince = now;
+    const left = 3 - Math.floor((now - readySince) / 1000);
+    setHint(left > 0 ? `Get ready... ${left}` : 'Go!');
+    if (now - readySince > 3000) toPlay(now);
+    return;
+  }
+  readySince = 0;
+  if (needed === 1) {
+    setHint(seen[0] ? 'Raise both hands to start!' : 'Step back until the camera can see you');
+    return;
+  }
+  const status = [0, 1].map((i) => `${SIDE_NAMES[i]}: ${up[i] ? 'ready' : seen[i] ? 'raise both hands' : 'step into your side'}`);
+  setHint(status.join('   |   '));
 }
 
 function draw() {
@@ -350,7 +358,7 @@ function draw() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const unit = bodyScale();
-  for (const p of poses) {
+  for (const { player, pts: p } of poses) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = Math.max(3, unit * 0.04);
     ctx.lineCap = 'round';
@@ -361,9 +369,9 @@ function draw() {
       ctx.lineTo(p[b].x, p[b].y);
       ctx.stroke();
     }
+    ctx.fillStyle = PLAYER_COLORS[player];
     for (const i of [L_INDEX, R_INDEX]) {
       if (p[i].v < 0.4) continue;
-      ctx.fillStyle = 'rgba(255, 210, 63, 0.9)';
       ctx.beginPath();
       ctx.arc(p[i].x, p[i].y, unit * 0.12, 0, Math.PI * 2);
       ctx.fill();

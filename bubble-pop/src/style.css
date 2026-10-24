@@ -6,6 +6,7 @@
   --muted: #a9c3e0;
   --accent: #ffd23f;
   --accent-ink: #2a1f00;
+  --accent-2: #5ad1ff;
   --line: rgba(255, 255, 255, 0.18);
   --font: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -60,8 +61,9 @@ h1 { margin: 0; font-size: clamp(36px, 8vw, 56px); letter-spacing: 0.5px; color:
 h2 { margin: 0; font-size: 28px; }
 .lead { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.4; }
 .fine { margin: 0; color: var(--muted); font-size: 13px; }
-.result { margin: 0; font-size: 22px; }
-#final { font-size: 64px; font-weight: 800; color: var(--accent); display: block; font-variant-numeric: tabular-nums; }
+.result { margin: 0; font-size: 22px; display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
+.result b { font-size: 64px; font-weight: 800; color: var(--accent); display: block; font-variant-numeric: tabular-nums; }
+.result .p2 b { color: var(--accent-2); }
 
 fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 legend { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 8px; padding: 0; width: 100%; }
@@ -106,7 +108,24 @@ button.big { background: var(--accent); color: var(--accent-ink); border-color: 
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
-#score { color: var(--accent); }
+.score { color: var(--accent); }
+.score.p2 { color: var(--accent-2); }
+
+#divider {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 3px dashed rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+#skip {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  background: var(--panel);
+}
 
 #hint {
   position: fixed;
