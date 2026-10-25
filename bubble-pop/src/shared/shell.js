@@ -247,8 +247,10 @@ export function runGame(def) {
     if (detections) {
       fps.inferMs = performance.now() - t0;
       fps.frames++;
-      players.update(detections, coverRect(tracker.video, canvas), now);
+      if (!tracker.latest) players.update(detections, coverRect(tracker.video, canvas), now);
     }
+    // Smoothed positions predicted to this exact moment, so movement draws at the screen's frame rate.
+    if (tracker.latest) players.update(tracker.latest(now), coverRect(tracker.video, canvas), now);
     players.expire(now);
     if (now - fps.since > 1000) {
       fps.value = Math.round((fps.frames * 1000) / (now - fps.since || 1));
@@ -342,6 +344,7 @@ export function runGame(def) {
       drawSkeletons(1, 0, 0, playing);
       if (!playing) drawReadyMarks();
     }
+    if (state === 'countdown') drawCountdown(now);
     // Two players are tracked on separate halves of the camera picture, so always show the split.
     if (settings.players === 2 && state !== 'menu') {
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
@@ -405,6 +408,26 @@ export function runGame(def) {
       }
       ctx.globalAlpha = 1;
     }
+  }
+
+  // Big 3, 2, 1 in the middle of the screen; each number pops in and shrinks.
+  function drawCountdown(now) {
+    const left = (countdownEnd - now) / 1000;
+    const n = Math.ceil(left);
+    if (n <= 0) return;
+    const k = n - left; // 0 when the number appears, up to 1
+    const size = canvas.height * (0.32 - k * 0.08);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (1 - k) * 3);
+    ctx.font = `900 ${Math.round(size)}px ui-rounded, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = size * 0.08;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.strokeText(String(n), canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillText(String(n), canvas.width / 2, canvas.height / 2);
+    ctx.restore();
   }
 
   // During the ready check, label each player and show a tick once their hand is up.

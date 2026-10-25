@@ -3,6 +3,7 @@
 import { runGame } from './shared/shell.js';
 import { PLAYER_COLORS } from './shared/players.js';
 import { sfx } from './shared/sound.js';
+import { Fx } from './shared/fx.js';
 
 // paddle: paddle radius (screen heights). flight: seconds a return takes to land. cpu: computer speed and aim error.
 const LEVELS = {
@@ -28,6 +29,7 @@ class TableTennis {
     this.paddles = [0, 1].map((side) => ({ side, x: 0, y: 0, ready: false, speed: 0 }));
     this.cpuAim = 0;
     this.message = null;
+    this.fx = new Fx();
     this.done = false;
     this.startServe();
   }
@@ -112,6 +114,7 @@ class TableTennis {
   }
 
   update(dt, now, players) {
+    this.fx.update(dt);
     const g = this.geom();
     if (this.message) {
       this.message.life -= dt;
@@ -167,6 +170,8 @@ class TableTennis {
         // A ball that has not bounced yet (volley) is fine too: kids should not lose points for being eager.
         this.launch(pd.side, smash ? 0.7 : 1);
         sfx.paddle();
+        this.fx.burst(b.x, b.y, smash ? '#ffd23f' : '#ffffff', { n: smash ? 16 : 7, speed: g.H * (smash ? 0.7 : 0.4), size: g.ballR * 0.4, life: 0.4 });
+        if (smash) this.fx.bump(g.H * 0.015);
         if (smash) this.message = { text: 'Smash!', life: 0.8, color: '#ffd23f' };
         return;
       }
@@ -247,7 +252,14 @@ class TableTennis {
 
   // ---------- Drawing ----------
 
-  draw(ctx) {
+  draw(ctx, now) {
+    this.fx.applyShake(ctx);
+    this.drawScene(ctx, now);
+    this.fx.draw(ctx);
+    ctx.restore();
+  }
+
+  drawScene(ctx, now) {
     const g = this.geom();
     const v = this.view;
     const thick = g.H * 0.025;

@@ -2,6 +2,7 @@
 import { runGame } from './shared/shell.js';
 import { PLAYER_COLORS } from './shared/players.js';
 import { sfx } from './shared/sound.js';
+import { Fx } from './shared/fx.js';
 
 // flight: seconds from release to reaching the batter. reach: extra hit distance, in shoulder widths.
 // swing: minimum hand speed (shoulder widths per second) for a shot; slower contact is a block.
@@ -31,6 +32,7 @@ class Batting {
     this.timer = WAIT_TIME;
     this.ball = null;
     this.message = null;
+    this.fx = new Fx();
     this.done = false;
   }
 
@@ -52,6 +54,7 @@ class Batting {
   }
 
   update(dt, now, p) {
+    this.fx.update(dt);
     const L = this.level;
     this.p = p.present ? p : null;
     if (this.message) {
@@ -144,6 +147,8 @@ class Batting {
       b.vy = -Math.abs(power * 1.1);
       b.shrink = true;
       sfx.bat();
+      this.fx.burst(b.x, b.y, '#ffffff', { n: 10 + runs * 3, speed: p.sw * (3 + runs), size: p.sw * 0.05 });
+      if (runs >= 4) this.fx.bump(p.sw * 0.12 * (runs / 4));
       if (runs >= 4) sfx.cheer();
       return;
     }
@@ -155,6 +160,8 @@ class Batting {
       this.finish(0, 'Bowled!', '#ff6b6b');
       b.stumpsHit = true;
       sfx.out();
+      this.fx.burst(b.stumpsX, b.feetY - b.sw * 1.2, '#f2e3c4', { n: 12, speed: b.sw * 3, size: b.sw * 0.05 });
+      this.fx.bump(b.sw * 0.1);
     } else {
       this.finish(0, 'Missed', '#a9c3e0');
     }
@@ -183,6 +190,13 @@ class Batting {
   // ---------- Drawing ----------
 
   draw(ctx, now) {
+    this.fx.applyShake(ctx);
+    this.drawScene(ctx, now);
+    this.fx.draw(ctx);
+    ctx.restore();
+  }
+
+  drawScene(ctx, now) {
     const v = this.view;
     const from = this.bowlerPoint();
     const sw = this.p ? this.p.sw : v.w * 0.08;

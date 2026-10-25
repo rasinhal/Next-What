@@ -13,9 +13,12 @@ It exists to answer one question: is body tracking fast and accurate enough on t
 | `runner.html` | Runner | Step left/right to change lanes, jump, crouch |
 | `cricket.html` | Cricket | Swing your hands like a bat |
 | `table-tennis.html` | Table Tennis | Move your hand to the ball |
+| `fruit-slice.html` | Fruit Slice | Swipe your hands fast through the fruit |
+| `goalkeeper.html` | Goalkeeper | Block shots with your hands or body |
+| `mole-smash.html` | Mole Smash | Touch the moles around you |
 | `bubble-pop.html` | Bubble Pop | Touch bubbles with your hands |
 
-Runner, Cricket and Table Tennis share one game shell in `src/shared/`: `shell.js` (menu, "raise a hand to start", countdown, results), `players.js` (body positions and hand speeds in screen pixels), `sound.js` (synthesized sounds) and `tracking.js` (camera and body tracking, shared with Bubble Pop). A new game only needs its rules and drawing; see `src/runner.js` for the pattern, and add the page to `vite.config.js`.
+Runner, Cricket and Table Tennis share one game shell in `src/shared/`: `shell.js` (menu, "raise a hand to start", countdown, results), `players.js` (body positions and hand speeds in screen pixels), `sound.js` (synthesized sounds), `fx.js` (particles, pop-up text, screen shake, and hand paths so a fast swipe between camera frames still hits) and `tracking.js` (camera and body tracking, shared with Bubble Pop). A new game only needs its rules and drawing; see `src/runner.js` for the pattern, and add the page to `vite.config.js`.
 
 To start, every player raises a hand above their head. A "Start now" button (or Enter on a keyboard or TV remote) starts straight away, for example when only one of two players is found.
 

@@ -34,6 +34,7 @@ export async function createSimTracker({ players = 1 } = {}) {
   });
 
   let lastFrame = 0;
+  let lastOut = [];
   return {
     video,
     delegate: 'SIM',
@@ -46,7 +47,12 @@ export async function createSimTracker({ players = 1 } = {}) {
         const p = sim.players[i];
         if (p && !p.hidden) out.push({ player: i, lm: pose(p, now) });
       }
+      lastOut = out;
       return out;
+    },
+    // Same shape as the real tracker's latest(): the last poses, every animation frame.
+    latest() {
+      return lastOut;
     },
   };
 }

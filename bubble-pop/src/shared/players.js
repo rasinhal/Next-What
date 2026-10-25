@@ -26,7 +26,9 @@ export class Players {
     this.list = Array.from({ length: count }, (_, id) => ({ id, present: false, seenAt: 0 }));
   }
 
-  // detections: [{ player, lm: [{x, y, visibility}] }] from tracker.detect(); called only on new video frames.
+  // detections: [{ player, lm: [{x, y, visibility}] }] from tracker.latest() (every animation frame, already smoothed
+  // and predicted between camera frames) or tracker.detect() (new camera frames only).
+  // Players missing from a call keep their last state.
   update(detections, rect, now) {
     for (const d of detections) {
       const p = this.list[d.player];
@@ -36,16 +38,17 @@ export class Players {
       const sw = Math.max(8, Math.hypot(ls.x - rs.x, ls.y - rs.y));
       const center = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
       const hip = { x: (lm[L_HIP].x + lm[R_HIP].x) / 2, y: (lm[L_HIP].y + lm[R_HIP].y) / 2 };
-      const dt = p.present ? Math.max(0.008, (now - p.seenAt) / 1000) : 0;
+      const dt = p.present ? (now - p.seenAt) / 1000 : 0;
       const hands = HANDS.map(([w, i, e], k) => {
         // Point a little past the wrist, between wrist and finger tip: steadier than either alone.
         const x = (lm[w].x * 2 + lm[i].x) / 3, y = (lm[w].y * 2 + lm[i].y) / 3;
         const prev = p.hands && p.hands[k];
         let vx = 0, vy = 0;
-        if (prev && dt && dt < 0.25) {
-          // Light smoothing so one noisy frame does not count as a swing.
-          vx = prev.vx * 0.35 + ((x - prev.x) / dt) * 0.65;
-          vy = prev.vy * 0.35 + ((y - prev.y) / dt) * 0.65;
+        if (prev && dt > 0.004 && dt < 0.25) {
+          // Light smoothing (about 40 ms) so one noisy frame does not count as a swing, whatever the update rate.
+          const k = 1 - Math.exp(-dt / 0.04);
+          vx = prev.vx + ((x - prev.x) / dt - prev.vx) * k;
+          vy = prev.vy + ((y - prev.y) / dt - prev.vy) * k;
         }
         return { x, y, vx, vy, speed: Math.hypot(vx, vy) / sw, v: Math.min(lm[w].v, 1), elbow: lm[e] };
       });

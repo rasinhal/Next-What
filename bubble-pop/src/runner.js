@@ -2,6 +2,7 @@
 import { runGame } from './shared/shell.js';
 import { PLAYER_COLORS } from './shared/players.js';
 import { sfx } from './shared/sound.js';
+import { Fx } from './shared/fx.js';
 
 // speed: world units per second; gap: seconds between obstacle rows.
 // lane, jump, duck: how far the body must move, in shoulder widths, to count.
@@ -38,6 +39,7 @@ class Runner {
     this.obstacles = [];
     this.nextRow = 1;
     this.popups = [];
+    this.fx = new Fx();
     this.done = false;
   }
 
@@ -74,6 +76,7 @@ class Runner {
   }
 
   update(dt, now, p) {
+    this.fx.update(dt);
     const L = this.level;
     this.t += dt;
     this.control(dt, p);
@@ -96,6 +99,8 @@ class Runner {
         o.taken = true;
         this.coins++;
         sfx.coin();
+        const at = this.runnerPos();
+        this.fx.burst(at.x, at.y - at.s * 0.5, '#ffd23f', { n: 8, speed: at.s * 2, size: at.s * 0.04, life: 0.4 });
         continue;
       }
       const dodged = (o.kind === 'low' && this.jumpT >= 0) || (o.kind === 'high' && this.ducking);
@@ -105,6 +110,9 @@ class Runner {
         this.crashes++;
         sfx.crash();
         this.popups.push({ text: 'Ouch!', life: 0.8 });
+        const at = this.runnerPos();
+        this.fx.burst(at.x, at.y - at.s * 0.4, '#ffffff', { n: 14, speed: at.s * 2.5, size: at.s * 0.05 });
+        this.fx.bump(at.s * 0.15);
       }
     }
     this.obstacles = this.obstacles.filter((o) => o.d > -3 && !o.taken);
@@ -116,6 +124,13 @@ class Runner {
       this.spawnRow();
       this.nextRow = L.gap * (0.8 + Math.random() * 0.4);
     }
+  }
+
+  // Where the runner is on screen, and one lane width there.
+  runnerPos() {
+    const g = this.geom();
+    const p = this.proj(g, PLAYER_D, this.laneX);
+    return { x: p.x, y: p.y, s: g.laneW * p.f };
   }
 
   // One obstacle (sometimes two) per row, so at least one lane is always open; coins go in an open lane.
@@ -148,6 +163,13 @@ class Runner {
   }
 
   draw(ctx, now) {
+    this.fx.applyShake(ctx);
+    this.drawScene(ctx, now);
+    this.fx.draw(ctx);
+    ctx.restore();
+  }
+
+  drawScene(ctx, now) {
     const g = this.geom();
     const { v } = g;
 
