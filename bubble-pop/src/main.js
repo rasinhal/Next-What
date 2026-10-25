@@ -27,6 +27,8 @@ let state = 'menu'; // menu | ready | play | over
 let bubbles = [];
 let sparks = [];
 let poses = []; // [{ player, pts: [{x, y, v}] }] in canvas pixels
+let prevHands = new Map();
+let lastFrame = 0;
 let scores = [0, 0];
 let roundEnd = 0;
 let nextSpawn = 0;
@@ -240,20 +242,38 @@ function track(now) {
   if (!tracker) return;
   const t0 = performance.now();
   const result = tracker.detect(now);
-  if (!result) return;
-  fps.inferMs = performance.now() - t0;
-  fps.frames++;
+  if (result) {
+    fps.inferMs = performance.now() - t0;
+    fps.frames++;
+  }
   if (now - fps.since > 1000) {
     fps.value = Math.round((fps.frames * 1000) / (now - fps.since));
     fps.frames = 0;
     fps.since = now;
   }
+  // Predicted positions every screen frame, so hands move smoothly between camera frames.
   const rect = coverRect();
-  poses = result.map(({ player, lm }) => ({
+  prevHands = handPoints();
+  poses = tracker.latest(now).map(({ player, lm }) => ({
     player,
     pts: lm.map((p) => ({ x: rect.x + p.x * rect.w, y: rect.y + p.y * rect.h, v: p.visibility })),
   }));
   if (poses.length) lastSeen = now;
+}
+
+// Hand points keyed by player and landmark, to test the path a hand moved along since the last frame.
+function handPoints() {
+  const out = new Map();
+  for (const pose of poses) for (const i of HAND_POINTS) out.set(pose.player * 100 + i, pose.pts[i]);
+  return out;
+}
+
+// Distance from point (px, py) to the segment a-b.
+function segmentDistance(px, py, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2)) : 0;
+  return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
 }
 
 function handsUp(p) {
@@ -261,7 +281,9 @@ function handsUp(p) {
 }
 
 function update(now) {
-  const dt = 1 / 60;
+  // Real time since the last frame, so bubbles move at the same speed on fast and slow devices.
+  const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 1 / 60;
+  lastFrame = now;
 
   if (state === 'ready') updateReady(now);
 
@@ -293,7 +315,13 @@ function update(now) {
       const bx = b.x + Math.sin(b.phase) * b.r * 0.3;
       if (b.popped) continue;
       for (const pose of poses) {
-        const hit = HAND_POINTS.some((i) => pose.pts[i].v > 0.4 && Math.hypot(pose.pts[i].x - bx, pose.pts[i].y - b.y) < b.r + handR);
+        // Test the whole path the hand moved along, so a fast swipe through a bubble still pops it.
+        const hit = HAND_POINTS.some((i) => {
+          const h = pose.pts[i];
+          if (h.v <= 0.4) return false;
+          const from = prevHands.get(pose.player * 100 + i) || h;
+          return segmentDistance(bx, b.y, from, h) < b.r + handR;
+        });
         if (!hit) continue;
         b.popped = true;
         scores[pose.player]++;
