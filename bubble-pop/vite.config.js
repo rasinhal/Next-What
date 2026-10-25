@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 // Relative base so the build works from any host path and inside the Android app.
 // Every game is its own page; index.html is the game menu.
-const pages = ['index', 'bubble-pop', 'runner', 'cricket', 'table-tennis'];
+const pages = ['index', 'bubble-pop', 'runner', 'cricket', 'table-tennis', 'fruit-slice', 'goalkeeper', 'mole-smash'];
 
 export default defineConfig({
   base: './',
